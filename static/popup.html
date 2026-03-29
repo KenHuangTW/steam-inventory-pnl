@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steam Inventory PnL</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div>
+          <div class="popup-eyebrow">Steam Inventory PnL</div>
+          <h1 data-role="popup-title">Inventory PnL Tracker</h1>
+        </div>
+        <div class="popup-header__count" data-role="count">0 tracked items</div>
+      </header>
+
+      <section class="popup-copy" data-role="popup-intro">
+        Save a custom cost on any Steam listing or inventory item. Profit math is shown directly on the page.
+      </section>
+
+      <div class="popup-actions">
+        <button data-action="refresh" type="button" data-role="refresh-button">Refresh</button>
+        <button data-action="clear" type="button" class="popup-actions__danger" data-role="clear-button">Clear All</button>
+      </div>
+
+      <section class="popup-list" data-role="list"></section>
+    </main>
+    <script src="scripts/shared.js"></script>
+    <script src="scripts/popup.js"></script>
+  </body>
+</html>

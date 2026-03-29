@@ -1,0 +1,131 @@
+body {
+  margin: 0;
+  min-width: 360px;
+  background:
+    radial-gradient(circle at top right, rgba(108, 170, 255, 0.12), transparent 38%),
+    linear-gradient(180deg, #111c2f, #0b1321);
+  color: #edf4ff;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.popup-shell {
+  padding: 16px;
+}
+
+.popup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popup-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8fb9ff;
+  font-weight: 700;
+}
+
+.popup-header h1 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+
+.popup-header__count {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+}
+
+.popup-copy {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(237, 244, 255, 0.8);
+  line-height: 1.4;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.popup-actions button {
+  flex: 1;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf4ff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.popup-actions__danger {
+  background: rgba(255, 119, 119, 0.18);
+}
+
+.popup-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popup-card,
+.popup-empty {
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.popup-card__top,
+.popup-card__meta,
+.popup-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popup-card__top h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.popup-card__top p {
+  margin: 4px 0 0;
+  color: rgba(237, 244, 255, 0.68);
+  font-size: 12px;
+}
+
+.popup-card__pill {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(73, 152, 255, 0.18);
+  color: #b7d3ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.popup-card__meta,
+.popup-card__footer,
+.popup-card__note {
+  margin-top: 10px;
+  color: rgba(237, 244, 255, 0.78);
+  font-size: 12px;
+}
+
+.popup-card__footer a {
+  color: #9fc5ff;
+  text-decoration: none;
+}
+
+.popup-empty {
+  color: rgba(237, 244, 255, 0.8);
+  line-height: 1.5;
+}

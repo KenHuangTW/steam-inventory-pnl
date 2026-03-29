@@ -1,0 +1,207 @@
+.steam-upup-panel {
+  box-sizing: border-box;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(117, 172, 255, 0.35);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(117, 172, 255, 0.15), transparent 42%),
+    linear-gradient(180deg, rgba(20, 33, 54, 0.96), rgba(12, 20, 34, 0.96));
+  color: #e6edf7;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  position: relative;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.steam-upup-panel__header,
+.steam-upup-panel__actions,
+.steam-upup-panel__subhead,
+.steam-upup-panel__metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.steam-upup-panel__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9ab9ff;
+}
+
+.steam-upup-panel__title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.steam-upup-panel--draggable .steam-upup-panel__header {
+  cursor: grab;
+  user-select: none;
+}
+
+.steam-upup-dragging .steam-upup-panel--draggable .steam-upup-panel__header {
+  cursor: grabbing;
+}
+
+.steam-upup-panel__badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(76, 136, 255, 0.16);
+  color: #b9d3ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.steam-upup-panel__subhead {
+  margin-top: 10px;
+  color: rgba(230, 237, 247, 0.78);
+  font-size: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.steam-upup-panel__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.steam-upup-panel__metric {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.steam-upup-panel__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(230, 237, 247, 0.6);
+}
+
+.steam-upup-panel__value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.steam-upup-panel__value--positive {
+  color: #67ef9b;
+}
+
+.steam-upup-panel__value--negative {
+  color: #ff8e8e;
+}
+
+.steam-upup-panel__secondary {
+  color: rgba(230, 237, 247, 0.65);
+  font-size: 12px;
+}
+
+.steam-upup-panel__form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.steam-upup-panel__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(230, 237, 247, 0.82);
+}
+
+.steam-upup-panel__wide {
+  grid-column: 1 / -1;
+}
+
+.steam-upup-panel__form input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(9, 16, 27, 0.7);
+  color: #f6fbff;
+}
+
+.steam-upup-panel__actions {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.steam-upup-panel__button,
+.steam-upup-panel__link {
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf4ff;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.steam-upup-panel__button[disabled] {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.steam-upup-panel__button--primary {
+  background: linear-gradient(135deg, #4998ff, #70b8ff);
+  color: #08101e;
+}
+
+.steam-upup-panel__status {
+  margin-top: 12px;
+  color: rgba(230, 237, 247, 0.68);
+  font-size: 12px;
+}
+
+.steam-upup-inventory-anchor {
+  position: relative;
+  overflow: visible !important;
+}
+
+.steam-upup-panel--inventory-left-floating {
+  position: absolute;
+  top: 0;
+  left: calc(-332px - 20px);
+  width: min(332px, calc(100vw - 24px));
+  margin-top: 0;
+}
+
+.steam-upup-panel--inventory-left-floating .steam-upup-panel__metric {
+  min-height: 98px;
+}
+
+@media (max-width: 1420px) {
+  .steam-upup-panel--inventory-left-floating {
+    position: static;
+    width: auto;
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .steam-upup-panel__metrics,
+  .steam-upup-panel__form {
+    grid-template-columns: 1fr;
+  }
+}

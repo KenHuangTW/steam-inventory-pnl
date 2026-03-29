@@ -1,0 +1,20 @@
+{
+  "name": "steam-inventory-pnl",
+  "version": "0.2.1",
+  "description": "Browser extension for tracking Steam inventory prices, costs, and profit relationships.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "steam",
+    "extension",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
+}

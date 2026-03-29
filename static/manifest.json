@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Steam Inventory PnL",
+  "version": "0.2.1",
+  "description": "Track Steam inventory prices, costs, and estimated profit on item pages.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://steamcommunity.com/*"],
+  "action": {
+    "default_title": "Steam Inventory PnL",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://steamcommunity.com/*"],
+      "js": ["scripts/shared.js", "scripts/content.js"],
+      "css": ["styles/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["scripts/pageBridge.js"],
+      "matches": ["https://steamcommunity.com/*"]
+    }
+  ]
+}
