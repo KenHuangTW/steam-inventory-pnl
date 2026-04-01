@@ -20,10 +20,19 @@ Steam Inventory PnL is a Manifest V3 browser extension for tracking item prices,
 
 ```bash
 cmd /c npm install
+python scripts/generate_store_assets.py
 cmd /c npm run build
+cmd /c npm run package
 ```
 
 Load the unpacked extension from `dist/` in Chrome or Edge developer mode.
+
+## Chrome Web Store submission
+
+- extension icons are generated into `static/icons/`
+- store screenshots and listing copy live in `store/`
+- the uploadable package is created at `release/steam-inventory-pnl-chrome-v<version>.zip`
+- publish `store/privacy-policy.md` at a public URL before submitting the first listing
 
 ## First places to improve
 

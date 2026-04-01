@@ -4,7 +4,9 @@
   "description": "Browser extension for tracking Steam inventory prices, costs, and profit relationships.",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit"
+    "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
+    "store:assets": "python scripts/generate_store_assets.py",
+    "package": "node scripts/build.mjs && node scripts/package.mjs"
   },
   "keywords": [
     "steam",
