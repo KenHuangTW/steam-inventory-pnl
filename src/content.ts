@@ -14,6 +14,7 @@ namespace SteamUpupContent {
 
   type RecordSource = "manual" | "market-history";
   type CostBasisKind = SteamUpupShared.CostBasisKind;
+  type PresetCostBasisKind = Extract<CostBasisKind, "case-opening" | "weekly-drop">;
 
   interface TrackedItemRecord {
     key: string;
@@ -2234,19 +2235,75 @@ namespace SteamUpupContent {
     };
   }
 
-  function formatCaseOpeningPresetAppliedStatus(amount: number, currencySymbol: string): string {
+  function formatPresetAppliedStatus(kind: PresetCostBasisKind, amount: number, currencySymbol: string): string {
     const formattedCost = formatMoney(amount, currencySymbol);
 
     if (UI_CONTEXT.locale === "zh-TW") {
-      return `\u5df2\u5957\u7528\u7bb1\u5b50\u958b\u51fa\u6210\u672c ${formattedCost}\u3002`;
+      return kind === "case-opening"
+        ? `\u5df2\u5957\u7528\u7bb1\u5b50\u958b\u51fa\u6210\u672c ${formattedCost}\u3002`
+        : `\u5df2\u5957\u7528\u6bcf\u9031\u6389\u843d\u6210\u672c ${formattedCost}\u3002`;
     }
 
-    return `Applied case-opening cost ${formattedCost}.`;
+    return kind === "case-opening"
+      ? `Applied case-opening cost ${formattedCost}.`
+      : `Applied weekly-drop cost ${formattedCost}.`;
+  }
+
+  function getCostBasisLabel(costBasisKind: CostBasisKind): string {
+    switch (costBasisKind) {
+      case "case-opening":
+        return UI.caseOpeningCost;
+      case "weekly-drop":
+        return UI.weeklyDropCost;
+      case "manual":
+      default:
+        return UI.customCost;
+    }
+  }
+
+  function getCostBasisSourceText(costBasisKind: CostBasisKind): string {
+    switch (costBasisKind) {
+      case "case-opening":
+        return UI.basedOnCaseOpeningCost;
+      case "weekly-drop":
+        return UI.basedOnWeeklyDropCost;
+      case "manual":
+      default:
+        return UI.basedOnCustomCost;
+    }
+  }
+
+  function getSavedStatusForCostBasis(costBasisKind: CostBasisKind, variant: "default" | "submitted"): string {
+    switch (costBasisKind) {
+      case "case-opening":
+        return UI.savedCaseOpeningCost;
+      case "weekly-drop":
+        return UI.savedWeeklyDropCost;
+      case "manual":
+      default:
+        return variant === "default" ? UI.savedInBrowser : UI.savedOverride;
+    }
+  }
+
+  function getInvalidStatusForCostBasis(costBasisKind: CostBasisKind): string {
+    switch (costBasisKind) {
+      case "case-opening":
+        return UI.invalidCaseOpeningCost;
+      case "weekly-drop":
+        return UI.invalidWeeklyDropCost;
+      case "manual":
+      default:
+        return UI.invalidCustomCost;
+    }
   }
 
   function resolveCostBasisKind(record: TrackedItemRecord | undefined, submittedKind?: string): CostBasisKind {
-    if (submittedKind === "case-opening" || record?.costBasisKind === "case-opening") {
-      return "case-opening";
+    if (submittedKind === "case-opening" || submittedKind === "weekly-drop") {
+      return submittedKind;
+    }
+
+    if (record?.costBasisKind === "case-opening" || record?.costBasisKind === "weekly-drop") {
+      return record.costBasisKind;
     }
 
     return "manual";
@@ -2269,20 +2326,18 @@ namespace SteamUpupContent {
     const returnRate = record && customCost > 0 && pnlPerUnit !== null ? pnlPerUnit / customCost : null;
     const breakEvenGross = pricingMetrics.breakEvenGross;
     const costBasisKind = resolveCostBasisKind(record);
-    const costLabel = costBasisKind === "case-opening" ? UI.caseOpeningCost : UI.customCost;
+    const shouldShowReturnRate = costBasisKind !== "weekly-drop" && customCost > 0;
+    const shouldShowBreakEvenGross = customCost > 0;
+    const costLabel = getCostBasisLabel(costBasisKind);
     const costSourceText =
       record?.source === "market-history"
         ? UI.importedFromMarketHistory
-        : costBasisKind === "case-opening"
-          ? UI.basedOnCaseOpeningCost
-          : UI.basedOnCustomCost;
+        : getCostBasisSourceText(costBasisKind);
     const resolvedStatusMessage =
       statusMessage ||
       (record?.source === "market-history"
         ? UI.importedFromMarketHistory
-        : costBasisKind === "case-opening"
-          ? UI.savedCaseOpeningCost
-          : UI.savedInBrowser);
+        : getSavedStatusForCostBasis(costBasisKind, "default"));
 
     return `
       <div class="steam-upup-panel__header">
@@ -2317,16 +2372,24 @@ namespace SteamUpupContent {
           `<div class="${pnlClassName(totalPnl)}">${escapeHtml(formatMoney(totalPnl, currencySymbol))}</div>`,
           SteamUpupShared.formatUnitCount(quantity, UI_CONTEXT.locale)
         )}
-        ${createMetric(
-          UI.returnRate,
-          `<div class="${pnlClassName(returnRate)}">${escapeHtml(formatPercent(returnRate))}</div>`,
-          costSourceText
-        )}
-        ${createMetric(
-          UI.breakEvenGross,
-          `<div class="steam-upup-panel__value">${escapeHtml(formatMoney(breakEvenGross, currencySymbol))}</div>`,
-          UI.approximateSalePriceTarget
-        )}
+        ${
+          shouldShowReturnRate
+            ? createMetric(
+                UI.returnRate,
+                `<div class="${pnlClassName(returnRate)}">${escapeHtml(formatPercent(returnRate))}</div>`,
+                costSourceText
+              )
+            : ""
+        }
+        ${
+          shouldShowBreakEvenGross
+            ? createMetric(
+                UI.breakEvenGross,
+                `<div class="steam-upup-panel__value">${escapeHtml(formatMoney(breakEvenGross, currencySymbol))}</div>`,
+                UI.approximateSalePriceTarget
+              )
+            : ""
+        }
       </div>
       <form class="steam-upup-panel__form">
         <label>
@@ -2356,6 +2419,7 @@ namespace SteamUpupContent {
           <button type="submit" class="steam-upup-panel__button steam-upup-panel__button--primary">${escapeHtml(UI.save)}</button>
           <button type="button" data-action="reset" class="steam-upup-panel__button">${escapeHtml(UI.reset)}</button>
           <button type="button" data-action="case-opened" class="steam-upup-panel__button">${escapeHtml(UI.caseOpenedPreset)}</button>
+          <button type="button" data-action="weekly-drop" class="steam-upup-panel__button">${escapeHtml(UI.weeklyDropPreset)}</button>
           <button type="button" data-action="sync-history" class="steam-upup-panel__button">${escapeHtml(UI.syncHistory)}</button>
           ${
             context.listingUrl
@@ -2380,12 +2444,13 @@ namespace SteamUpupContent {
     const customCostInput = panel.querySelector<HTMLInputElement>("input[name='customCost']");
     const resetButton = panel.querySelector<HTMLButtonElement>("[data-action='reset']");
     const caseOpenedButton = panel.querySelector<HTMLButtonElement>("[data-action='case-opened']");
+    const weeklyDropButton = panel.querySelector<HTMLButtonElement>("[data-action='weekly-drop']");
     const syncButton = panel.querySelector<HTMLButtonElement>("[data-action='sync-history']");
     const statusElement = panel.querySelector<HTMLElement>(".steam-upup-panel__status");
     const dragHandle = panel.querySelector<HTMLElement>(".steam-upup-panel__header");
     const panelPositionKey = getPanelPositionKey(context);
 
-    if (!form || !customCostInput || !resetButton || !caseOpenedButton || !syncButton || !statusElement || !dragHandle) {
+    if (!form || !customCostInput || !resetButton || !caseOpenedButton || !weeklyDropButton || !syncButton || !statusElement || !dragHandle) {
       return;
     }
 
@@ -2481,8 +2546,7 @@ namespace SteamUpupContent {
       const costBasisKind = resolveCostBasisKind(record, form.dataset.submitCostBasisKind);
 
       if (!Number.isFinite(customCost) || customCost < 0) {
-        statusElement.textContent =
-          costBasisKind === "case-opening" ? UI.invalidCaseOpeningCost : UI.invalidCustomCost;
+        statusElement.textContent = getInvalidStatusForCostBasis(costBasisKind);
         return;
       }
 
@@ -2491,8 +2555,7 @@ namespace SteamUpupContent {
       const currencySymbol =
         priceSnapshot?.currencySymbol ?? record?.currencySymbol ?? UI_CONTEXT.fallbackCurrencySymbol;
       const nextStatusMessage =
-        form.dataset.submitStatus ||
-        (costBasisKind === "case-opening" ? UI.savedCaseOpeningCost : UI.savedOverride);
+        form.dataset.submitStatus || getSavedStatusForCostBasis(costBasisKind, "submitted");
       delete form.dataset.submitStatus;
       delete form.dataset.submitCostBasisKind;
 
@@ -2542,7 +2605,17 @@ namespace SteamUpupContent {
 
       customCostInput.value = preset.amount.toString();
       form.dataset.submitCostBasisKind = "case-opening";
-      form.dataset.submitStatus = formatCaseOpeningPresetAppliedStatus(preset.amount, preset.currencySymbol);
+      form.dataset.submitStatus = formatPresetAppliedStatus("case-opening", preset.amount, preset.currencySymbol);
+      form.requestSubmit();
+    });
+
+    weeklyDropButton.addEventListener("click", () => {
+      const currencySymbol =
+        priceSnapshot?.currencySymbol ?? record?.currencySymbol ?? UI_CONTEXT.fallbackCurrencySymbol;
+
+      customCostInput.value = "0";
+      form.dataset.submitCostBasisKind = "weekly-drop";
+      form.dataset.submitStatus = formatPresetAppliedStatus("weekly-drop", 0, currencySymbol);
       form.requestSubmit();
     });
 
