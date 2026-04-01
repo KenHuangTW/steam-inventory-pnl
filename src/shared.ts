@@ -1,5 +1,7 @@
 namespace SteamUpupShared {
   export type SupportedLocale = "zh-TW" | "en";
+  export type RecordSource = "manual" | "market-history";
+  export type CostBasisKind = "manual" | "case-opening";
 
   export interface Translations {
     genericSteamItem: string;
@@ -19,20 +21,26 @@ namespace SteamUpupShared {
     sourceLowestListing: string;
     sourceMedianPrice: string;
     basedOnCustomCost: string;
+    basedOnCaseOpeningCost: string;
     approximateSalePriceTarget: string;
     customCost: string;
+    caseOpeningCost: string;
     quantity: string;
     feePercent: string;
     note: string;
     notePlaceholder: string;
+    caseOpenedPreset: string;
+    caseOpeningCostUnavailable: string;
     save: string;
     reset: string;
     openListing: string;
     unavailable: string;
     savedInBrowser: string;
     savedOverride: string;
+    savedCaseOpeningCost: string;
     removedOverride: string;
     invalidCustomCost: string;
+    invalidCaseOpeningCost: string;
     popupTitle: string;
     popupIntro: string;
     popupRefresh: string;
@@ -77,20 +85,26 @@ namespace SteamUpupShared {
       sourceLowestListing: "\u6700\u4f4e\u520a\u767b\u50f9",
       sourceMedianPrice: "\u6210\u4ea4\u4e2d\u4f4d\u50f9",
       basedOnCustomCost: "\u4f9d\u4f60\u7684\u81ea\u8a02\u6210\u672c\u8a08\u7b97",
+      basedOnCaseOpeningCost: "\u4f9d\u4f60\u7684\u958b\u7bb1\u6210\u672c\u8a08\u7b97",
       approximateSalePriceTarget: "\u4f30\u7b97\u56de\u672c\u552e\u50f9\u76ee\u6a19",
       customCost: "\u81ea\u8a02\u6210\u672c",
+      caseOpeningCost: "\u958b\u7bb1\u6210\u672c",
       quantity: "\u6578\u91cf",
       feePercent: "\u624b\u7e8c\u8cbb %",
       note: "\u5099\u8a3b",
       notePlaceholder: "\u9078\u586b\u5099\u8a3b",
+      caseOpenedPreset: "\u7bb1\u5b50\u958b\u51fa",
+      caseOpeningCostUnavailable: "\u76ee\u524d\u9084\u6c92\u6709\u8a2d\u5b9a\u9019\u500b\u5730\u5340\u7684\u9810\u8a2d\u958b\u7bb1\u6210\u672c\u3002",
       save: "\u5132\u5b58",
       reset: "\u91cd\u8a2d",
       openListing: "\u6253\u958b\u5e02\u96c6\u9801",
       unavailable: "\u7121\u6cd5\u53d6\u5f97",
       savedInBrowser: "\u8cc7\u6599\u53ea\u6703\u5132\u5b58\u5728\u9019\u500b\u700f\u89bd\u5668\u3002",
       savedOverride: "\u5df2\u5132\u5b58\u81ea\u8a02\u6210\u672c\u3002",
+      savedCaseOpeningCost: "\u5df2\u5132\u5b58\u958b\u7bb1\u6210\u672c\u3002",
       removedOverride: "\u5df2\u79fb\u9664\u81ea\u8a02\u6210\u672c\u3002",
       invalidCustomCost: "\u8acb\u8f38\u5165\u6709\u6548\u7684\u81ea\u8a02\u6210\u672c\u3002",
+      invalidCaseOpeningCost: "\u8acb\u8f38\u5165\u6709\u6548\u7684\u958b\u7bb1\u6210\u672c\u3002",
       popupTitle: "\u7269\u54c1\u5eab\u640d\u76ca\u8ffd\u8e64",
       popupIntro:
         "\u5728 \u0053\u0074\u0065\u0061\u006d \u5e02\u96c6\u9801\u6216\u7269\u54c1\u5eab\u7269\u54c1\u4e0a\u5132\u5b58\u81ea\u8a02\u6210\u672c\uff0c\u76f4\u63a5\u8ffd\u8e64\u50f9\u683c\u3001\u6de8\u6536\u8207\u640d\u76ca\u3002",
@@ -127,20 +141,26 @@ namespace SteamUpupShared {
       sourceLowestListing: "Lowest listing",
       sourceMedianPrice: "Median price",
       basedOnCustomCost: "Based on your custom cost",
+      basedOnCaseOpeningCost: "Based on your case-opening cost",
       approximateSalePriceTarget: "Approximate sale price target",
       customCost: "Custom cost",
+      caseOpeningCost: "Case-opening cost",
       quantity: "Quantity",
       feePercent: "Fee %",
       note: "Note",
       notePlaceholder: "Optional memo",
+      caseOpenedPreset: "Case opened",
+      caseOpeningCostUnavailable: "No default case-opening cost is configured for this locale yet.",
       save: "Save",
       reset: "Reset",
       openListing: "Open listing",
       unavailable: "Unavailable",
       savedInBrowser: "Saved locally in this browser profile.",
       savedOverride: "Saved local cost override.",
+      savedCaseOpeningCost: "Saved case-opening cost.",
       removedOverride: "Removed local override.",
       invalidCustomCost: "Enter a valid custom cost before saving.",
+      invalidCaseOpeningCost: "Enter a valid case-opening cost before saving.",
       popupTitle: "Inventory PnL Tracker",
       popupIntro: "Save a custom cost on any Steam listing or inventory item and track price, net proceeds, and profit directly on the page.",
       popupRefresh: "Refresh",
