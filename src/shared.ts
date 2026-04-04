@@ -61,6 +61,14 @@ namespace SteamUpupShared {
     importedFromMarketHistory: string;
     aliasedFromMarketHistory: string;
     debugMatchInfo: string;
+    inventoryTotalsTitle: string;
+    inventoryTotalsIntro: string;
+    inventoryTotalsEmpty: string;
+    inventoryTotalsLoading: string;
+    inventoryTotalCost: string;
+    inventoryTotalNetValue: string;
+    inventoryPnlRatio: string;
+    inventoryTotalsPricingUnavailable: string;
   }
 
   export interface UiContext {
@@ -131,7 +139,15 @@ namespace SteamUpupShared {
       syncingHistory: "\u540c\u6b65\u5e02\u96c6\u7d00\u9304\u4e2d...",
       importedFromMarketHistory: "\u4f86\u81ea\u5e02\u96c6\u8cb7\u5165\u7d00\u9304",
       aliasedFromMarketHistory: "\u5df2\u5957\u7528\u540c\u540d\u552f\u4e00\u7684\u5e02\u96c6\u8cb7\u5165\u6210\u672c",
-      debugMatchInfo: "\u5339\u914d\u8cc7\u8a0a"
+      debugMatchInfo: "\u5339\u914d\u8cc7\u8a0a",
+      inventoryTotalsTitle: "\u904a\u6232\u7269\u54c1\u5eab\u7e3d\u640d\u76ca",
+      inventoryTotalsIntro: "\u53ea\u7d71\u8a08\u76ee\u524d\u9078\u4e2d\u4e14\u5df2\u8a2d\u5b9a\u5b8c\u6210\u7684\u904a\u6232\u7269\u54c1\u5eab",
+      inventoryTotalsEmpty: "\u76ee\u524d\u9078\u4e2d\u7684\u904a\u6232\u7269\u54c1\u5eab\u9084\u6c92\u6709\u53ef\u7d71\u8a08\u7684\u5df2\u8a2d\u5b9a\u8cc7\u6599\u3002",
+      inventoryTotalsLoading: "\u6b63\u5728\u6574\u7406\u5df2\u8a2d\u5b9a\u7269\u54c1\u5eab\u7684\u7e3d\u640d\u76ca...",
+      inventoryTotalCost: "\u8a72\u904a\u6232\u7684\u7e3d\u6210\u672c",
+      inventoryTotalNetValue: "\u8a72\u904a\u6232\u7269\u54c1\u5eab\u7684\u7e3d\u6de8\u503c",
+      inventoryPnlRatio: "\u8a72\u904a\u6232\u7269\u54c1\u5eab\u7684\u640d\u76ca\u6bd4",
+      inventoryTotalsPricingUnavailable: "\u90e8\u5206\u7269\u54c1\u7121\u6cd5\u53d6\u5f97\u76ee\u524d\u50f9\u683c"
     },
     en: {
       genericSteamItem: "Steam Item",
@@ -190,7 +206,15 @@ namespace SteamUpupShared {
       syncingHistory: "Syncing market history...",
       importedFromMarketHistory: "Imported from market buy history",
       aliasedFromMarketHistory: "Applied the only matching market buy cost",
-      debugMatchInfo: "Match debug"
+      debugMatchInfo: "Match debug",
+      inventoryTotalsTitle: "Inventory totals by game",
+      inventoryTotalsIntro: "Only the selected inventory with saved tracking data is included.",
+      inventoryTotalsEmpty: "The selected inventory has no configured items ready to summarize yet.",
+      inventoryTotalsLoading: "Loading configured inventory totals...",
+      inventoryTotalCost: "Total cost",
+      inventoryTotalNetValue: "Total net value",
+      inventoryPnlRatio: "PnL ratio",
+      inventoryTotalsPricingUnavailable: "Some items are missing current pricing"
     }
   };
 

@@ -3,6 +3,7 @@ namespace SteamUpupContent {
   const IMPORTED_STORAGE_KEY = "marketImportedItems";
   const PANEL_POSITION_KEY = "panelPositions";
   const PANEL_CLASS = "steam-upup-panel";
+  const INVENTORY_TOTALS_CLASS = "steam-upup-inventory-totals";
   const REFRESH_INTERVAL_MS = 5000;
   const PRICE_CACHE_TTL_MS = 60_000;
   const MARKET_HISTORY_PAGE_SIZE = 500;
@@ -121,6 +122,53 @@ namespace SteamUpupContent {
     breakEvenGross: number | null;
   }
 
+  interface InventoryTotalsMountTarget {
+    parent: HTMLElement;
+    before: ChildNode | null;
+  }
+
+  interface ActiveInventorySelection {
+    appId: string;
+    appName: string;
+  }
+
+  interface InventoryTotalsRecordContext {
+    record: TrackedItemRecord;
+    context: ItemContext;
+    appName: string;
+    quantity: number;
+  }
+
+  interface InventoryTotalsAccumulator {
+    appId: string;
+    appName: string;
+    trackedItemsCount: number;
+    totalQuantity: number;
+    totalCost: number;
+    pricedQuantity: number;
+    pricedCost: number;
+    missingPriceQuantity: number;
+    totalNetValue: number;
+    pricingUnavailable: boolean;
+    currencySymbol: string;
+    sortIndex: number;
+  }
+
+  interface InventoryTotalsGroup {
+    appId: string;
+    appName: string;
+    trackedItemsCount: number;
+    totalQuantity: number;
+    totalCost: number;
+    pricedQuantity: number;
+    pricedCost: number;
+    missingPriceQuantity: number;
+    totalNetValue: number | null;
+    totalReturnRate: number | null;
+    pricingUnavailable: boolean;
+    currencySymbol: string;
+  }
+
   interface MarketHistoryResponse {
     success?: boolean;
     total_count?: number;
@@ -179,6 +227,7 @@ namespace SteamUpupContent {
   let refreshIntervalId: number | null = null;
   let marketHistorySyncPromise: Promise<MarketHistorySyncResult> | null = null;
   let autoMarketHistorySyncStarted = false;
+  let inventoryTotalsRenderSequence = 0;
 
   function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
@@ -949,8 +998,26 @@ namespace SteamUpupContent {
     );
 
     const contexts: ItemContext[] = [];
+    const candidateSidebars =
+      sidebars.length > 0
+        ? sidebars
+        : Array.from(document.querySelectorAll<HTMLElement>(".inventory_page_right")).filter(
+            (element) =>
+              isVisible(element) &&
+              (!!textFromSelectors(
+                [
+                  ".inventory_item_name",
+                  ".item_desc_name",
+                  ".item_desc_title",
+                  "[id$='_item_name']",
+                  ".hover_item_name"
+                ],
+                element
+              ) ||
+                !!element.querySelector(".item_desc_description, a[href*='/market/listings/'], .item_market_actions"))
+          );
 
-    for (const sidebar of sidebars) {
+    for (const sidebar of candidateSidebars) {
       const displayName = extractDisplayName(sidebar, UI.unknownItem);
       const appName = extractAppName(sidebar, displayName, UI.genericInventoryItem);
       const inlinePriceText = extractInlinePriceText(sidebar);
@@ -2016,6 +2083,7 @@ namespace SteamUpupContent {
       .then((result) => {
         const matchedCurrentItem = result.importedKeys.includes(context.key);
         void renderContext(context, formatMarketHistorySyncSuccess(result.importedCount, matchedCurrentItem));
+        scheduleScan();
       })
       .catch((error) => {
         const nextStatus = formatMarketHistorySyncError(error);
@@ -2058,7 +2126,7 @@ namespace SteamUpupContent {
 
   function mutationTouchesPanel(mutation: MutationRecord): boolean {
     const targetNode = mutation.target instanceof HTMLElement ? mutation.target : mutation.target.parentElement;
-    if (targetNode?.closest(`.${PANEL_CLASS}`)) {
+    if (targetNode?.closest(`.${PANEL_CLASS}, .${INVENTORY_TOTALS_CLASS}`)) {
       return true;
     }
 
@@ -2069,7 +2137,11 @@ namespace SteamUpupContent {
         return false;
       }
 
-      return node.classList.contains(PANEL_CLASS) || !!node.closest(`.${PANEL_CLASS}`);
+      return (
+        node.classList.contains(PANEL_CLASS) ||
+        node.classList.contains(INVENTORY_TOTALS_CLASS) ||
+        !!node.closest(`.${PANEL_CLASS}, .${INVENTORY_TOTALS_CLASS}`)
+      );
     });
   }
 
@@ -2207,6 +2279,489 @@ namespace SteamUpupContent {
       layoutRefreshScheduled = false;
       refreshFloatingPanelLayouts();
     });
+  }
+
+  function normalizeTrackedQuantity(quantity: number | undefined): number {
+    return Number.isFinite(quantity) && typeof quantity === "number" && quantity > 0 ? Math.floor(quantity) : 1;
+  }
+
+  function normalizeInventoryGameLabel(label: string): string {
+    return label.replace(/\(\s*\d+\s*\)\s*$/, "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function parseInventoryTabAppId(tab: HTMLElement): string {
+    const candidates = [tab.id, tab.getAttribute("href") ?? "", tab.dataset.appid ?? ""];
+
+    for (const candidate of candidates) {
+      const match = candidate.match(/(\d{2,10})/);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return "";
+  }
+
+  function resolveActiveInventorySelection(): ActiveInventorySelection | null {
+    const activeTab =
+      document.querySelector<HTMLElement>(".games_list_tab.active") ??
+      (window.location.hash
+        ? document.querySelector<HTMLElement>(`.games_list_tab[href="${CSS.escape(window.location.hash)}"]`)
+        : null);
+
+    if (activeTab) {
+      const appId = parseInventoryTabAppId(activeTab);
+      const appName =
+        activeTab.querySelector<HTMLElement>(".games_list_tab_name")?.textContent?.trim() ??
+        activeTab.textContent?.trim() ??
+        "";
+
+      if (appId) {
+        return {
+          appId,
+          appName
+        };
+      }
+    }
+
+    const selectedAsset = resolveSelectedInventoryAsset();
+    if (selectedAsset?.appId) {
+      const matchingTab = document.querySelector<HTMLElement>(`#inventory_link_${CSS.escape(selectedAsset.appId)}`);
+      const appName =
+        matchingTab?.querySelector<HTMLElement>(".games_list_tab_name")?.textContent?.trim() ??
+        "";
+
+      return {
+        appId: selectedAsset.appId,
+        appName
+      };
+    }
+
+    return null;
+  }
+
+  function getInventoryTotalsRecordScore(record: TrackedItemRecord): number {
+    let score = record.source === "manual" ? 100 : 0;
+
+    if (record.appId) {
+      score += 10;
+    }
+
+    if (record.marketHashName) {
+      score += 10;
+    }
+
+    if (record.listingUrl) {
+      score += 5;
+    }
+
+    if (record.assetId && record.contextId) {
+      score += 1;
+    }
+
+    return score;
+  }
+
+  function selectPreferredInventoryTotalsRecord(
+    existing: TrackedItemRecord | undefined,
+    candidate: TrackedItemRecord
+  ): TrackedItemRecord {
+    if (!existing) {
+      return candidate;
+    }
+
+    const existingScore = getInventoryTotalsRecordScore(existing);
+    const candidateScore = getInventoryTotalsRecordScore(candidate);
+
+    if (candidateScore !== existingScore) {
+      return candidateScore > existingScore ? candidate : existing;
+    }
+
+    return candidate.updatedAt.localeCompare(existing.updatedAt) > 0 ? candidate : existing;
+  }
+
+  function createInventoryTotalsContext(record: TrackedItemRecord): ItemContext | null {
+    const parsedListing = record.listingUrl ? parseListingUrl(record.listingUrl) : null;
+    const appId = record.appId || parsedListing?.appId || "";
+    const marketHashName = record.marketHashName || parsedListing?.marketHashName || record.displayName;
+
+    if (!appId || !marketHashName) {
+      return null;
+    }
+
+    return {
+      key: buildMarketKey(appId, marketHashName),
+      appId,
+      appName: record.appName || UI.genericSteamItem,
+      displayName: record.displayName || marketHashName,
+      marketHashName,
+      listingUrl: record.listingUrl || parsedListing?.listingUrl || "",
+      mountElement: document.body,
+      placement: "append",
+      layout: "default"
+    };
+  }
+
+  function resolveInventoryTotalsRecords(
+    manualRecords: Record<string, TrackedItemRecord>,
+    importedRecords: Record<string, TrackedItemRecord>
+  ): TrackedItemRecord[] {
+    const dedupedRecords = new Map<string, TrackedItemRecord>();
+    const records = [...Object.values(importedRecords), ...Object.values(manualRecords)];
+
+    for (const record of records) {
+      if (!Number.isFinite(record.customCost) || record.customCost < 0) {
+        continue;
+      }
+
+      const normalizedRecord: TrackedItemRecord = {
+        ...record,
+        quantity: normalizeTrackedQuantity(record.quantity),
+        customCost: Math.max(0, record.customCost),
+        feeRate: SteamUpupShared.normalizeFeeRate(record.feeRate ?? 0.15)
+      };
+
+      const dedupeKey = normalizedRecord.sourceKey ?? normalizedRecord.key;
+      const existingRecord = dedupedRecords.get(dedupeKey);
+      dedupedRecords.set(dedupeKey, selectPreferredInventoryTotalsRecord(existingRecord, normalizedRecord));
+    }
+
+    return Array.from(dedupedRecords.values());
+  }
+
+  function recordMatchesActiveInventory(record: TrackedItemRecord, activeInventory: ActiveInventorySelection): boolean {
+    const parsedListing = record.listingUrl ? parseListingUrl(record.listingUrl) : null;
+    const resolvedAppId = record.appId || parsedListing?.appId || "";
+    if (resolvedAppId && resolvedAppId === activeInventory.appId) {
+      return true;
+    }
+
+    if (!activeInventory.appName) {
+      return false;
+    }
+
+    return normalizeInventoryGameLabel(record.appName) === normalizeInventoryGameLabel(activeInventory.appName);
+  }
+
+  function resolveInventoryGameOrder(): Map<string, number> {
+    const gameOrder = new Map<string, number>();
+    const tabs = Array.from(document.querySelectorAll<HTMLElement>(".games_list_tab")).filter(isVisible);
+
+    tabs.forEach((tab, index) => {
+      const normalizedLabel = normalizeInventoryGameLabel(tab.textContent ?? "");
+      if (normalizedLabel && !gameOrder.has(normalizedLabel)) {
+        gameOrder.set(normalizedLabel, index);
+      }
+    });
+
+    return gameOrder;
+  }
+
+  async function buildInventoryTotalsGroups(records: TrackedItemRecord[]): Promise<InventoryTotalsGroup[]> {
+    if (records.length === 0) {
+      return [];
+    }
+
+    const entries: InventoryTotalsRecordContext[] = [];
+    const uniqueContexts = new Map<string, ItemContext>();
+
+    for (const record of records) {
+      const context = createInventoryTotalsContext(record);
+      if (!context) {
+        continue;
+      }
+
+      const entry: InventoryTotalsRecordContext = {
+        record,
+        context,
+        appName: record.appName || context.appName || UI.genericSteamItem,
+        quantity: normalizeTrackedQuantity(record.quantity)
+      };
+
+      entries.push(entry);
+
+      const cacheKey = getPriceCacheKey(context);
+      if (!uniqueContexts.has(cacheKey)) {
+        uniqueContexts.set(cacheKey, context);
+      }
+    }
+
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const priceSnapshots = new Map(
+      await Promise.all(
+        Array.from(uniqueContexts.entries()).map(async ([cacheKey, context]) => {
+          return [cacheKey, await fetchPriceSnapshot(context)] as const;
+        })
+      )
+    );
+
+    const gameOrder = resolveInventoryGameOrder();
+    const groupedTotals = new Map<string, InventoryTotalsAccumulator>();
+
+    for (const entry of entries) {
+      const { record, context, appName, quantity } = entry;
+      const groupKey = context.appId || normalizeInventoryGameLabel(appName);
+      const normalizedAppName = normalizeInventoryGameLabel(appName);
+      const snapshot = priceSnapshots.get(getPriceCacheKey(context)) ?? null;
+      const currencySymbol = snapshot?.currencySymbol || record.currencySymbol || UI_CONTEXT.fallbackCurrencySymbol;
+      let accumulator = groupedTotals.get(groupKey);
+
+      if (!accumulator) {
+        accumulator = {
+          appId: context.appId,
+          appName,
+          trackedItemsCount: 0,
+          totalQuantity: 0,
+          totalCost: 0,
+          pricedQuantity: 0,
+          pricedCost: 0,
+          missingPriceQuantity: 0,
+          totalNetValue: 0,
+          pricingUnavailable: false,
+          currencySymbol,
+          sortIndex: gameOrder.get(normalizedAppName) ?? Number.MAX_SAFE_INTEGER
+        };
+        groupedTotals.set(groupKey, accumulator);
+      }
+
+      accumulator.trackedItemsCount += 1;
+      accumulator.totalQuantity += quantity;
+      accumulator.totalCost += record.customCost * quantity;
+
+      if (!snapshot) {
+        accumulator.pricingUnavailable = true;
+        accumulator.missingPriceQuantity += quantity;
+        continue;
+      }
+
+      accumulator.currencySymbol = snapshot.currencySymbol || accumulator.currencySymbol;
+      const feeModel = buildFallbackFeeModel(record.feeRate);
+      const estimatedNet = estimateNet(snapshot.grossPrice, accumulator.currencySymbol, feeModel);
+      accumulator.pricedQuantity += quantity;
+      accumulator.pricedCost += record.customCost * quantity;
+      accumulator.totalNetValue += estimatedNet * quantity;
+    }
+
+    return Array.from(groupedTotals.values())
+      .sort((left, right) => {
+        if (left.sortIndex !== right.sortIndex) {
+          return left.sortIndex - right.sortIndex;
+        }
+
+        if (Math.abs(right.totalCost - left.totalCost) > 0.0001) {
+          return right.totalCost - left.totalCost;
+        }
+
+        return left.appName.localeCompare(right.appName, UI_CONTEXT.numberLocale);
+      })
+      .map((group) => {
+        const totalNetValue = group.pricedQuantity > 0 ? group.totalNetValue : null;
+        const totalReturnRate =
+          totalNetValue !== null && group.pricedCost > 0 ? (totalNetValue - group.pricedCost) / group.pricedCost : null;
+
+        return {
+          appId: group.appId,
+          appName: group.appName,
+          trackedItemsCount: group.trackedItemsCount,
+          totalQuantity: group.totalQuantity,
+          totalCost: group.totalCost,
+          pricedQuantity: group.pricedQuantity,
+          pricedCost: group.pricedCost,
+          missingPriceQuantity: group.missingPriceQuantity,
+          totalNetValue,
+          totalReturnRate,
+          pricingUnavailable: group.pricingUnavailable,
+          currencySymbol: group.currencySymbol
+        };
+      });
+  }
+
+  function resolveInventoryTotalsMountTarget(): InventoryTotalsMountTarget | null {
+    const tabItemsContainer = document.querySelector<HTMLElement>(".tabitems_ctn");
+    if (tabItemsContainer?.parentElement) {
+      return {
+        parent: tabItemsContainer.parentElement,
+        before: tabItemsContainer.nextSibling
+      };
+    }
+
+    const controlsAnchor =
+      document.querySelector<HTMLElement>("#inventory_pagecontrols") ??
+      document.querySelector<HTMLElement>(".filter_ctn.inventory_filters") ??
+      document.querySelector<HTMLElement>("#inventories") ??
+      document.querySelector<HTMLElement>(".inventory_ctn");
+
+    if (controlsAnchor?.parentElement) {
+      return {
+        parent: controlsAnchor.parentElement,
+        before: controlsAnchor
+      };
+    }
+
+    const lastGamesTabs = Array.from(document.querySelectorAll<HTMLElement>(".games_list_tabs")).filter(isVisible).at(-1);
+    if (lastGamesTabs?.parentElement) {
+      return {
+        parent: lastGamesTabs.parentElement,
+        before: lastGamesTabs.nextSibling
+      };
+    }
+
+    return null;
+  }
+
+  function removeInventoryTotalsSection(): void {
+    document.querySelectorAll<HTMLElement>(`.${INVENTORY_TOTALS_CLASS}`).forEach((element) => element.remove());
+  }
+
+  function ensureInventoryTotalsSection(target: InventoryTotalsMountTarget): HTMLDivElement {
+    let section = document.querySelector<HTMLDivElement>(`.${INVENTORY_TOTALS_CLASS}`);
+
+    if (!section) {
+      section = document.createElement("div");
+      section.className = INVENTORY_TOTALS_CLASS;
+    }
+
+    target.parent.insertBefore(section, target.before);
+    return section;
+  }
+
+  function renderInventoryTotalsMetric(label: string, valueMarkup: string, secondaryText = ""): string {
+    const secondary = secondaryText
+      ? `<div class="steam-upup-inventory-totals__secondary">${escapeHtml(secondaryText)}</div>`
+      : "";
+
+    return `
+      <div class="steam-upup-inventory-totals__metric">
+        <div class="steam-upup-inventory-totals__label">${escapeHtml(label)}</div>
+        ${valueMarkup}
+        ${secondary}
+      </div>
+    `;
+  }
+
+  function renderInventoryTotalsEmptyState(message: string): string {
+    return `<div class="steam-upup-inventory-totals__empty">${escapeHtml(message)}</div>`;
+  }
+
+  function formatInventoryTotalsMissingPriceText(missingQuantity: number): string {
+    if (missingQuantity <= 0) {
+      return "";
+    }
+
+    if (UI_CONTEXT.locale === "zh-TW") {
+      return `已排除 ${missingQuantity} 件無法取得目前價格的物品`;
+    }
+
+    return `Excluded ${missingQuantity} item${missingQuantity === 1 ? "" : "s"} with missing pricing`;
+  }
+
+  function formatInventoryTotalsRatioScopeText(pricedQuantity: number, totalQuantity: number): string {
+    if (pricedQuantity <= 0 || pricedQuantity >= totalQuantity) {
+      return "";
+    }
+
+    if (UI_CONTEXT.locale === "zh-TW") {
+      return `損益比僅依可取得價格的 ${pricedQuantity} 件計算`;
+    }
+
+    return `Ratio is based on ${pricedQuantity} priced item${pricedQuantity === 1 ? "" : "s"}`;
+  }
+
+  function renderInventoryTotalsCard(group: InventoryTotalsGroup): string {
+    const trackedCountText = SteamUpupShared.formatTrackedItemsCount(group.totalQuantity, UI_CONTEXT.locale);
+    const missingPriceText = formatInventoryTotalsMissingPriceText(group.missingPriceQuantity);
+    const ratioScopeText = formatInventoryTotalsRatioScopeText(group.pricedQuantity, group.totalQuantity);
+
+    return `
+      <article class="steam-upup-inventory-totals__card">
+        <div class="steam-upup-inventory-totals__card-header">
+          <div>
+            <h4 class="steam-upup-inventory-totals__card-title">${escapeHtml(group.appName)}</h4>
+            <div class="steam-upup-inventory-totals__card-meta">${escapeHtml(trackedCountText)}</div>
+          </div>
+        </div>
+        <div class="steam-upup-inventory-totals__metrics">
+          ${renderInventoryTotalsMetric(
+            UI.inventoryTotalCost,
+            `<div class="steam-upup-inventory-totals__value">${escapeHtml(formatMoney(group.totalCost, group.currencySymbol))}</div>`
+          )}
+          ${renderInventoryTotalsMetric(
+            UI.inventoryTotalNetValue,
+            `<div class="steam-upup-inventory-totals__value">${escapeHtml(formatMoney(group.totalNetValue, group.currencySymbol))}</div>`,
+            missingPriceText || (group.pricingUnavailable ? UI.inventoryTotalsPricingUnavailable : "")
+          )}
+          ${renderInventoryTotalsMetric(
+            UI.inventoryPnlRatio,
+            `<div class="${pnlClassName(group.totalReturnRate)}">${escapeHtml(formatPercent(group.totalReturnRate))}</div>`,
+            ratioScopeText || (group.pricingUnavailable && group.totalReturnRate === null ? missingPriceText : "")
+          )}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderInventoryTotalsSectionShell(content: string): string {
+    return `
+      <div class="steam-upup-inventory-totals__header">
+        <div class="steam-upup-inventory-totals__eyebrow">Steam Inventory PnL</div>
+        <h3 class="steam-upup-inventory-totals__title">${escapeHtml(UI.inventoryTotalsTitle)}</h3>
+        <div class="steam-upup-inventory-totals__intro">${escapeHtml(UI.inventoryTotalsIntro)}</div>
+      </div>
+      <div class="steam-upup-inventory-totals__list">
+        ${content}
+      </div>
+    `;
+  }
+
+  async function renderInventoryTotalsSection(): Promise<void> {
+    if (isContextInvalidated) {
+      return;
+    }
+
+    if (!window.location.pathname.includes("/inventory")) {
+      removeInventoryTotalsSection();
+      return;
+    }
+
+    const target = resolveInventoryTotalsMountTarget();
+    if (!target) {
+      removeInventoryTotalsSection();
+      return;
+    }
+
+    const section = ensureInventoryTotalsSection(target);
+    const renderSequence = ++inventoryTotalsRenderSequence;
+    scheduleLayoutRefresh();
+
+    if (section.dataset.ready !== "true") {
+      section.innerHTML = renderInventoryTotalsSectionShell(renderInventoryTotalsEmptyState(UI.inventoryTotalsLoading));
+      scheduleLayoutRefresh();
+    }
+
+    const [manualRecords, importedRecords] = await Promise.all([loadManualRecords(), loadImportedRecords()]);
+    if (isContextInvalidated || renderSequence !== inventoryTotalsRenderSequence) {
+      return;
+    }
+
+    const activeInventory = resolveActiveInventorySelection();
+    const trackedRecords = resolveInventoryTotalsRecords(manualRecords, importedRecords).filter((record) =>
+      activeInventory ? recordMatchesActiveInventory(record, activeInventory) : false
+    );
+    const groups = await buildInventoryTotalsGroups(trackedRecords);
+    if (isContextInvalidated || renderSequence !== inventoryTotalsRenderSequence) {
+      return;
+    }
+
+    section.innerHTML = renderInventoryTotalsSectionShell(
+      groups.length > 0
+        ? groups.map((group) => renderInventoryTotalsCard(group)).join("")
+        : renderInventoryTotalsEmptyState(UI.inventoryTotalsEmpty)
+    );
+    section.dataset.ready = "true";
+    scheduleLayoutRefresh();
   }
 
   function createMetric(label: string, valueMarkup: string, secondaryText = ""): string {
@@ -2575,11 +3130,13 @@ namespace SteamUpupContent {
         source: "manual",
         costBasisKind,
         assetId: context.assetId,
-        contextId: context.contextId
+        contextId: context.contextId,
+        sourceKey: record?.sourceKey
       };
 
       void saveManualRecord(nextRecord).then(() => {
         void renderContext(context, nextStatusMessage);
+        scheduleScan();
       });
     });
 
@@ -2590,6 +3147,7 @@ namespace SteamUpupContent {
 
       void deleteRecordPromise.then(() => {
         void renderContext(context, UI.removedOverride);
+        scheduleScan();
       });
     });
 
@@ -2628,6 +3186,7 @@ namespace SteamUpupContent {
         .then((result) => {
           const matchedCurrentItem = result.importedKeys.includes(context.key);
           void renderContext(context, matchedCurrentItem ? formatMarketHistorySyncSuccess(result.importedCount, matchedCurrentItem) : "");
+          scheduleScan();
         })
         .catch((error) => {
           statusElement.textContent = formatMarketHistorySyncError(error);
@@ -2702,6 +3261,8 @@ namespace SteamUpupContent {
     for (const context of contexts) {
       await renderContext(context);
     }
+
+    await renderInventoryTotalsSection();
   }
 
   function boot(): void {
