@@ -59,14 +59,133 @@ namespace SteamUpupPopup {
     });
   }
 
+  function coerceRecordText(value: unknown, fallback = ""): string {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+
+    return fallback;
+  }
+
+  function coerceRecordNumber(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      let normalized = value.replace(/[^\d,.-]/g, "");
+      if (!normalized) {
+        return null;
+      }
+
+      const lastComma = normalized.lastIndexOf(",");
+      const lastDot = normalized.lastIndexOf(".");
+
+      if (lastComma !== -1 && lastDot !== -1) {
+        if (lastComma > lastDot) {
+          normalized = normalized.replace(/\./g, "").replace(",", ".");
+        } else {
+          normalized = normalized.replace(/,/g, "");
+        }
+      } else if (lastComma !== -1) {
+        const decimals = normalized.length - lastComma - 1;
+        normalized = decimals <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
+      } else {
+        normalized = normalized.replace(/,/g, "");
+      }
+
+      const parsed = Number.parseFloat(normalized);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  }
+
+  function normalizeStoredFeeRate(value: unknown, fallbackValue = 0.15): number {
+    const parsedValue = coerceRecordNumber(value);
+    if (parsedValue === null) {
+      return fallbackValue;
+    }
+
+    const normalizedValue = parsedValue > 1 ? parsedValue / 100 : parsedValue;
+    return Math.min(Math.max(normalizedValue, 0), 0.95);
+  }
+
+  function normalizeStoredQuantity(value: unknown): number {
+    const parsedValue = coerceRecordNumber(value);
+    return parsedValue !== null && parsedValue > 0 ? Math.floor(parsedValue) : 1;
+  }
+
+  function normalizeStoredUpdatedAt(value: unknown): string {
+    if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+      return value;
+    }
+
+    return new Date(0).toISOString();
+  }
+
+  function normalizeStoredRecord(
+    rawRecord: unknown,
+    fallbackKey: string,
+    sourceOverride?: "manual" | "market-history"
+  ): TrackedItemRecord | null {
+    if (!rawRecord || typeof rawRecord !== "object") {
+      return null;
+    }
+
+    const candidate = rawRecord as Partial<TrackedItemRecord> & Record<string, unknown>;
+    const key = coerceRecordText(candidate.key, fallbackKey) || fallbackKey;
+
+    return {
+      key,
+      appId: coerceRecordText(candidate.appId),
+      appName: coerceRecordText(candidate.appName),
+      displayName: coerceRecordText(candidate.displayName),
+      marketHashName: coerceRecordText(candidate.marketHashName),
+      listingUrl: coerceRecordText(candidate.listingUrl),
+      quantity: normalizeStoredQuantity(candidate.quantity),
+      customCost: Math.max(0, coerceRecordNumber(candidate.customCost) ?? 0),
+      feeRate: normalizeStoredFeeRate(candidate.feeRate),
+      note: coerceRecordText(candidate.note),
+      currencySymbol: coerceRecordText(candidate.currencySymbol, UI_CONTEXT.fallbackCurrencySymbol) || UI_CONTEXT.fallbackCurrencySymbol,
+      updatedAt: normalizeStoredUpdatedAt(candidate.updatedAt),
+      source: sourceOverride ?? (candidate.source === "market-history" ? "market-history" : "manual"),
+      assetId: coerceRecordText(candidate.assetId) || undefined,
+      contextId: coerceRecordText(candidate.contextId) || undefined,
+      sourceKey: coerceRecordText(candidate.sourceKey) || undefined
+    };
+  }
+
+  function normalizeStoredRecordMap(
+    rawRecords: Record<string, unknown> | undefined,
+    sourceOverride?: "manual" | "market-history"
+  ): Record<string, TrackedItemRecord> {
+    const normalizedRecords: Record<string, TrackedItemRecord> = {};
+
+    for (const [storageKey, rawRecord] of Object.entries(rawRecords ?? {})) {
+      const normalizedRecord = normalizeStoredRecord(rawRecord, storageKey, sourceOverride);
+      if (!normalizedRecord) {
+        continue;
+      }
+
+      normalizedRecords[normalizedRecord.key] = normalizedRecord;
+    }
+
+    return normalizedRecords;
+  }
+
   async function loadRecords(): Promise<TrackedItemRecord[]> {
     const [manualRecords, importedRecords] = await Promise.all([
-      storageGet<Record<string, TrackedItemRecord>>(MANUAL_STORAGE_KEY),
-      storageGet<Record<string, TrackedItemRecord>>(IMPORTED_STORAGE_KEY)
+      storageGet<Record<string, unknown>>(MANUAL_STORAGE_KEY),
+      storageGet<Record<string, unknown>>(IMPORTED_STORAGE_KEY)
     ]);
     const mergedRecords: Record<string, TrackedItemRecord> = {
-      ...(importedRecords ?? {}),
-      ...(manualRecords ?? {})
+      ...normalizeStoredRecordMap(importedRecords, "market-history"),
+      ...normalizeStoredRecordMap(manualRecords, "manual")
     };
 
     return Object.values(mergedRecords).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
