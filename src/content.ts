@@ -373,12 +373,118 @@ namespace SteamUpupContent {
     });
   }
 
+  function coerceRecordText(value: unknown, fallback = ""): string {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+
+    return fallback;
+  }
+
+  function coerceRecordNumber(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      return normalizeNumber(value);
+    }
+
+    return null;
+  }
+
+  function normalizeStoredFeeRate(value: unknown, fallbackValue = 0.15): number {
+    const parsedValue = coerceRecordNumber(value);
+    if (parsedValue === null) {
+      return fallbackValue;
+    }
+
+    const normalizedValue = parsedValue > 1 ? parsedValue / 100 : parsedValue;
+    return SteamUpupShared.normalizeFeeRate(Math.min(Math.max(normalizedValue, 0), 0.95));
+  }
+
+  function normalizeStoredQuantity(value: unknown): number {
+    const parsedValue = coerceRecordNumber(value);
+    return parsedValue !== null && parsedValue > 0 ? Math.floor(parsedValue) : 1;
+  }
+
+  function normalizeStoredUpdatedAt(value: unknown): string {
+    if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+      return value;
+    }
+
+    return new Date(0).toISOString();
+  }
+
+  function normalizeStoredRecord(
+    rawRecord: unknown,
+    fallbackKey: string,
+    sourceOverride?: RecordSource
+  ): TrackedItemRecord | null {
+    if (!rawRecord || typeof rawRecord !== "object") {
+      return null;
+    }
+
+    const candidate = rawRecord as Partial<TrackedItemRecord> & Record<string, unknown>;
+    const key = coerceRecordText(candidate.key, fallbackKey) || fallbackKey;
+    const source = sourceOverride ?? (candidate.source === "market-history" ? "market-history" : "manual");
+    const costBasisKind =
+      candidate.costBasisKind === "case-opening" || candidate.costBasisKind === "weekly-drop"
+        ? candidate.costBasisKind
+        : candidate.costBasisKind === "manual"
+          ? "manual"
+          : undefined;
+
+    return {
+      key,
+      appId: coerceRecordText(candidate.appId),
+      appName: coerceRecordText(candidate.appName),
+      displayName: coerceRecordText(candidate.displayName),
+      marketHashName: coerceRecordText(candidate.marketHashName),
+      listingUrl: coerceRecordText(candidate.listingUrl),
+      quantity: normalizeStoredQuantity(candidate.quantity),
+      customCost: Math.max(0, coerceRecordNumber(candidate.customCost) ?? 0),
+      feeRate: normalizeStoredFeeRate(candidate.feeRate),
+      note: coerceRecordText(candidate.note),
+      currencySymbol: coerceRecordText(candidate.currencySymbol, UI_CONTEXT.fallbackCurrencySymbol) || UI_CONTEXT.fallbackCurrencySymbol,
+      updatedAt: normalizeStoredUpdatedAt(candidate.updatedAt),
+      source,
+      costBasisKind,
+      assetId: coerceRecordText(candidate.assetId) || undefined,
+      contextId: coerceRecordText(candidate.contextId) || undefined,
+      sourceKey: coerceRecordText(candidate.sourceKey) || undefined
+    };
+  }
+
+  // Older or migrated extension data can contain numeric fields as strings.
+  function normalizeStoredRecordMap(
+    rawRecords: Record<string, unknown> | undefined,
+    sourceOverride?: RecordSource
+  ): Record<string, TrackedItemRecord> {
+    const normalizedRecords: Record<string, TrackedItemRecord> = {};
+
+    for (const [storageKey, rawRecord] of Object.entries(rawRecords ?? {})) {
+      const normalizedRecord = normalizeStoredRecord(rawRecord, storageKey, sourceOverride);
+      if (!normalizedRecord) {
+        continue;
+      }
+
+      normalizedRecords[normalizedRecord.key] = normalizedRecord;
+    }
+
+    return normalizedRecords;
+  }
+
   async function loadManualRecords(): Promise<Record<string, TrackedItemRecord>> {
-    return (await storageGet<Record<string, TrackedItemRecord>>(MANUAL_STORAGE_KEY)) ?? {};
+    return normalizeStoredRecordMap(await storageGet<Record<string, unknown>>(MANUAL_STORAGE_KEY), "manual");
   }
 
   async function loadImportedRecords(): Promise<Record<string, TrackedItemRecord>> {
-    return (await storageGet<Record<string, TrackedItemRecord>>(IMPORTED_STORAGE_KEY)) ?? {};
+    return normalizeStoredRecordMap(await storageGet<Record<string, unknown>>(IMPORTED_STORAGE_KEY), "market-history");
   }
 
   async function loadPanelPositions(): Promise<Record<string, PanelPosition>> {
